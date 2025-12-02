@@ -7,6 +7,7 @@ import os
 import ast
 import sys
 import json
+import shutil
 import struct
 import pathlib
 import argparse
@@ -366,6 +367,23 @@ def main():
     # Finally, generate the GBL
     subprocess.run(commander_args, check=True)
 
+    # Run commander too for good measure
+    if gbl_metadata.get("fw_type", None) == "gecko-bootloader":
+        print("Running commander!!!")
+        subprocess.run([
+            "commander",
+            "postbuild",
+            args.slpb_file,
+            "--parameter",
+            f"build_dir:{build_dir}",
+            #*sys.argv[1:],
+        ], check=True)
+        print("Copying... " + str(project_root / "artifact") + " into " + str(artifact_root / "bootloader_artifact"))
+        shutil.copytree(
+            project_root / "artifact",
+            artifact_root,
+            dirs_exist_ok=True
+        )
 
 if __name__ == "__main__":
     main()

@@ -6,6 +6,7 @@ from __future__ import annotations
 import os
 import re
 import ast
+import fnmatch
 import sys
 import json
 import time
@@ -27,9 +28,16 @@ SLC = ["slc", "--daemon", "--daemon-timeout", "1"]
 
 LOGGER = logging.getLogger(__name__)
 
+def include_patterns(*patterns):
+    def _ignore(path, names):
+        keep = set()
+        for pattern in patterns:
+            keep.update(fnmatch.filter(names, pattern))
+        # ignore everything that is NOT in "keep"
+        return set(names) - keep
+    return _ignore
 
 yaml = YAML(typ="safe")
-
 
 def evaulate_f_string(f_string: str, variables: dict[str, typing.Any]) -> str:
     """
@@ -91,7 +99,7 @@ def parse_prefixed_output(output: str) -> tuple[str, pathlib.Path | None]:
         prefix = output
         path = None
 
-    if prefix not in ("gbl", "hex", "out"):
+    if prefix not in ("gbl", "hex", "out", "s37"):
         raise argparse.ArgumentTypeError(
             "Output format is of the form `gbl:overridden_filename.gbl` or just `gbl`"
         )
@@ -624,6 +632,14 @@ def main():
         shutil.copy(
             src=output_artifact.with_suffix(f".{extension}"),
             dst=args.output_dir / output_path,
+        )
+
+    if ("s37", None) in args.outputs:
+        shutil.copytree(
+            output_artifact.parent,
+            args.output_dir,
+            dirs_exist_ok=True,
+            ignore=include_patterns("*.s37")
         )
 
     if args.clean_build_dir:

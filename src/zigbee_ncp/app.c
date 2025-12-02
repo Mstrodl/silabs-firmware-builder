@@ -24,6 +24,7 @@
 
 #include "stack/include/message.h"
 #include "app/ncp/plugin/xncp/xncp.h"
+#include "sl_iostream_uart.h"
 #include "em_usart.h"
 
 #include "config/xncp_config.h"

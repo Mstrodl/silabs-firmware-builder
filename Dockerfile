@@ -73,6 +73,10 @@ RUN \
 
 ENV STUDIO_ADAPTER_PACK_PATH="/opt/zap"
 
+# Fix this SDK bug...
+RUN sed -i 's/#include "sl_led.h"/#include "sl_simple_led_instances.h"/' /gecko_sdk_*/platform/service/legacy_hal/src/base-replacement.c && \
+    sed -i 's/SL_CATALOG_LED_PRESENT/SL_CATALOG_SIMPLE_LED_PRESENT/' /gecko_sdk_*/platform/service/legacy_hal/src/base-replacement.c
+
 ARG USERNAME=builder
 ARG USER_UID=1000
 ARG USER_GID=$USER_UID
@@ -81,5 +85,42 @@ ARG USER_GID=$USER_UID
 RUN groupadd --gid $USER_GID $USERNAME \
     && useradd --uid $USER_UID --gid $USER_GID -m $USERNAME
 
+COPY . /firmware
+
+RUN for sdk in /*_sdk_*; do \
+  su $USERNAME -- $(which slc) signature trust --sdk "$sdk" && \
+  ln -s /firmware/gecko_sdk_extensions "$sdk"/extension && \
+  for ext in "$sdk"/extension/*/; do \
+    su $USERNAME -- $(which slc) signature trust --sdk "$sdk" --extension-path "$ext"; \
+  done; \
+  done
+
 USER $USERNAME
 WORKDIR /build
+
+RUN git config --global --add safe.directory "/firmware"
+
+RUN /opt/venv/bin/python3 /firmware/tools/build_project.py \
+    --keep-slc-daemon \
+    --sdk /gecko_sdk* \
+    --toolchain /opt/*arm-none-eabi* \
+    --manifest "/firmware/manifests/nabucasa/bryx_bootloader.yaml" \
+    --build-dir /build/build \
+    --build-system makefile \
+    --output-dir /build/outputs \
+    --output gbl \
+    --output hex \
+    --output s37 \
+    --no-clean-build-dir \
+    --output out && \
+  /opt/venv/bin/python3 /firmware/tools/build_project.py \
+    --sdk /gecko_sdk* \
+    --toolchain /opt/*arm-none-eabi* \
+    --manifest "/firmware/manifests/nabucasa/bryx_zigbee_ncp.yaml" \
+    --build-dir /build/build_ncp \
+    --build-system makefile \
+    --output-dir /build/outputs \
+    --output gbl \
+    --output hex \
+    --output out \
+    --no-clean-build-dir
