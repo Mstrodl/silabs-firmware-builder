@@ -1,4 +1,4 @@
-FROM debian:bookworm
+FROM debian:trixie
 
 ARG DEBIAN_FRONTEND=noninteractive
 
@@ -12,6 +12,7 @@ RUN \
        jq \
        yq \
        libgl1 \
+       libglib2.0-0 \
        make \
        default-jre-headless \
        patch \
@@ -21,7 +22,7 @@ RUN \
        unzip \
        xz-utils
 
-COPY requirements.txt /tmp/
+COPY silabs-firmware-builder/requirements.txt /tmp/
 
 RUN \
     virtualenv /opt/venv \
@@ -85,7 +86,9 @@ ARG USER_GID=$USER_UID
 RUN groupadd --gid $USER_GID $USERNAME \
     && useradd --uid $USER_UID --gid $USER_GID -m $USERNAME
 
-COPY . /firmware
+RUN mkdir -p /.git/modules
+COPY ../.git/modules/silabs-firmware-builder /.git/modules/silabs-firmware-builder
+COPY silabs-firmware-builder /firmware
 
 RUN for sdk in /*_sdk_*; do \
   su $USERNAME -- $(which slc) signature trust --sdk "$sdk" && \
@@ -94,6 +97,8 @@ RUN for sdk in /*_sdk_*; do \
     su $USERNAME -- $(which slc) signature trust --sdk "$sdk" --extension-path "$ext"; \
   done; \
   done
+
+RUN ln -s /firmware /silabs-firmware-builder
 
 USER $USERNAME
 WORKDIR /build
