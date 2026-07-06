@@ -20,7 +20,8 @@ RUN \
        python3-pip \
        python3-virtualenv \
        unzip \
-       xz-utils
+       xz-utils \
+       libdbus-1-3
 
 COPY silabs-firmware-builder/requirements.txt /tmp/
 
